@@ -5,9 +5,9 @@ runs report progress live.
 
 ## Problem Statement
 
-If we use an LLM to generate the transcript of an entire audio file, the dominant language subdues the other especially while using open weight models.
+If we use whisper-medium-mlx to generate the transcript of an entire audio file, the dominant language subdues the other especially while using open weight models.
 If we redo the same process by spliting the file in 5 second chunks, chances of detecting the language correctly increases but hallucination persists.
-So, here we recognise the pattern of mistakes and hallucinations and use the output generated in both the cases and run it over another model prompted to rectify those issues if they occur and provide the final result.
+So, here we recognise the pattern of mistakes and hallucinations and use the output generated in both the cases and run it over Qwen2.5-7B-4bit prompted to rectify those issues if they occur and provide the final result.
 
 ## What it does
 
