@@ -1,0 +1,8 @@
+# Install into the Python that will run Lang-Eval (needs Apple Silicon for MLX).
+fastapi
+uvicorn
+python-multipart
+mlx-whisper
+mlx-lm
+soundfile
+numpy

@@ -1,0 +1,1089 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lang-Eval</title>
+<style>
+  :root {
+    --sky-50:  #f0f9ff;
+    --sky-100: #e0f2fe;
+    --sky-200: #bae6fd;
+    --sky-400: #38bdf8;
+    --sky-500: #0ea5e9;
+    --sky-600: #0284c7;
+    --ink:     #0f172a;
+    --ink-2:   #475569;
+    --ink-3:   #94a3b8;
+    --line:    #e8eef5;
+    --shadow:      0 1px 2px rgba(15,23,42,.04), 0 8px 24px -12px rgba(2,132,199,.18);
+    --shadow-lift: 0 2px 4px rgba(15,23,42,.05), 0 18px 40px -18px rgba(2,132,199,.30);
+    --radius: 14px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body { margin: 0; padding: 0; }
+
+  body {
+    background: #fff;
+    color: var(--ink);
+    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    padding: 0 24px 80px;
+  }
+
+  .wrap { max-width: 1120px; margin: 0 auto; }
+
+  /* ---------- header ---------- */
+
+  header {
+    display: flex;
+    align-items: baseline;
+    gap: 14px;
+    padding: 40px 0 26px;
+  }
+
+  .mark {
+    font-size: 25px;
+    font-weight: 640;
+    letter-spacing: -.025em;
+  }
+  .mark span { color: var(--sky-500); }
+
+  .tagline { color: var(--ink-3); font-size: 13.5px; }
+
+  .models {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  .pill {
+    font-size: 11.5px;
+    color: var(--sky-600);
+    background: var(--sky-50);
+    border: 1px solid var(--sky-100);
+    border-radius: 999px;
+    padding: 3px 10px;
+    font-family: "SF Mono", ui-monospace, Menlo, monospace;
+  }
+
+  /* ---------- cards ---------- */
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px 22px;
+  }
+
+  .card + .card { margin-top: 18px; }
+
+  .card-title {
+    font-size: 11px;
+    letter-spacing: .09em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+
+  /* ---------- upload ---------- */
+
+  .drop {
+    border: 1.5px dashed var(--sky-200);
+    background: linear-gradient(180deg, #fff, var(--sky-50));
+    border-radius: 12px;
+    padding: 26px 20px;
+    text-align: center;
+    transition: border-color .15s, box-shadow .15s, background .15s;
+  }
+  .drop.over {
+    border-color: var(--sky-400);
+    box-shadow: inset 0 0 0 3px rgba(56,189,248,.10);
+  }
+  .drop p { margin: 10px 0 0; color: var(--ink-3); font-size: 12.5px; }
+
+  button {
+    font: inherit;
+    cursor: pointer;
+    border-radius: 10px;
+    border: 1px solid transparent;
+    transition: transform .06s, box-shadow .15s, background .15s, color .15s;
+  }
+  button:active:not(:disabled) { transform: translateY(1px); }
+  button:disabled { cursor: not-allowed; opacity: .5; }
+
+  .btn-primary {
+    background: var(--sky-500);
+    color: #fff;
+    font-weight: 550;
+    padding: 9px 20px;
+    box-shadow: 0 1px 2px rgba(2,132,199,.25), 0 10px 22px -12px rgba(2,132,199,.75);
+  }
+  .btn-primary:hover:not(:disabled) { background: var(--sky-600); box-shadow: var(--shadow-lift); }
+
+  .btn-ghost {
+    background: #fff;
+    border-color: var(--line);
+    color: var(--ink-2);
+    padding: 8px 16px;
+  }
+  .btn-ghost:hover:not(:disabled) { border-color: var(--sky-200); color: var(--sky-600); }
+
+  .path-row {
+    display: flex;
+    gap: 10px;
+    margin-top: 14px;
+    align-items: center;
+  }
+  .path-row input {
+    flex: 1;
+    font: 12.5px/1.4 "SF Mono", ui-monospace, Menlo, monospace;
+    color: var(--ink-2);
+    padding: 9px 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    outline: none;
+    min-width: 0;
+  }
+  .path-row input:focus {
+    border-color: var(--sky-400);
+    box-shadow: 0 0 0 3px rgba(56,189,248,.14);
+  }
+
+  /* ---------- loaded file ---------- */
+
+  #loaded { display: none; }
+  #loaded.on { display: block; }
+
+  .file-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  .file-name { font-weight: 550; font-size: 14px; word-break: break-all; }
+  .file-meta { color: var(--ink-3); font-size: 12.5px; }
+  .file-head .btn-primary { margin-left: auto; }
+
+  /* ---------- player ---------- */
+
+  .player {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 10px 16px 10px 10px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: linear-gradient(180deg, #fff, var(--sky-50));
+    box-shadow: var(--shadow);
+  }
+
+  .play {
+    width: 34px; height: 34px;
+    flex: none;
+    border-radius: 50%;
+    background: var(--sky-500);
+    color: #fff;
+    border: none;
+    display: grid;
+    place-items: center;
+    box-shadow: 0 1px 2px rgba(2,132,199,.3), 0 8px 18px -10px rgba(2,132,199,.9);
+  }
+  .play:hover { background: var(--sky-600); }
+  .play svg { width: 13px; height: 13px; fill: currentColor; }
+
+  .seek {
+    -webkit-appearance: none;
+    appearance: none;
+    flex: 1;
+    height: 18px;
+    background: none;
+    outline: none;
+    min-width: 0;
+    cursor: pointer;
+  }
+  .seek::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(
+      90deg,
+      var(--sky-500) 0 var(--played, 0%),
+      var(--sky-100) var(--played, 0%) 100%
+    );
+  }
+  .seek::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 12px; height: 12px;
+    margin-top: -4px;
+    border-radius: 50%;
+    background: #fff;
+    border: 2px solid var(--sky-500);
+    box-shadow: 0 1px 4px rgba(2,132,199,.45);
+  }
+
+  .modes {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 14px;
+    padding-left: 2px;
+  }
+  .modes-label {
+    font-size: 11px;
+    letter-spacing: .07em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    font-weight: 600;
+    margin-right: 6px;
+  }
+  .mode {
+    background: #fff;
+    border: 1px solid var(--line);
+    color: var(--ink-2);
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 999px;
+  }
+  .mode:hover { border-color: var(--sky-200); color: var(--sky-600); }
+  .mode.on {
+    background: var(--sky-50);
+    border-color: var(--sky-200);
+    color: var(--sky-600);
+    font-weight: 550;
+    box-shadow: 0 6px 14px -10px rgba(2,132,199,.8);
+  }
+
+  .clock {
+    font: 11.5px/1 "SF Mono", ui-monospace, Menlo, monospace;
+    color: var(--ink-2);
+    flex: none;
+    letter-spacing: -.01em;
+  }
+
+  /* ---------- trackers ---------- */
+
+  #runs { display: none; }
+  #runs.on { display: block; }
+
+  .tracker-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .tracker-grid.solo { grid-template-columns: 1fr; margin-top: 14px; }
+
+  .tracker {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 13px 15px 15px;
+    background: #fff;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .tracker.active {
+    border-color: var(--sky-200);
+    box-shadow: 0 10px 26px -18px rgba(2,132,199,.55);
+  }
+  .tracker.done { border-color: var(--sky-100); background: linear-gradient(180deg,#fff,var(--sky-50)); }
+  .tracker.failed { border-color: #fecdd3; background: #fff5f6; }
+
+  .tracker-head {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-bottom: 3px;
+  }
+  .dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--ink-3);
+    flex: none;
+  }
+  .tracker.active .dot { background: var(--sky-500); animation: pulse 1.15s ease-in-out infinite; }
+  .tracker.done   .dot { background: var(--sky-500); }
+  .tracker.failed .dot { background: #f43f5e; }
+
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(14,165,233,.45); }
+    50%     { box-shadow: 0 0 0 5px rgba(14,165,233,0); }
+  }
+
+  .tracker-name { font-weight: 550; font-size: 13.5px; }
+  .tracker-time {
+    margin-left: auto;
+    font: 11.5px/1 "SF Mono", ui-monospace, Menlo, monospace;
+    color: var(--ink-3);
+  }
+  .tracker-msg {
+    font-size: 12px;
+    color: var(--ink-2);
+    min-height: 17px;
+    margin-bottom: 9px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tracker.failed .tracker-msg { color: #be123c; white-space: normal; }
+
+  .line {
+    position: relative;
+    height: 3px;
+    border-radius: 999px;
+    background: var(--sky-100);
+    overflow: hidden;
+  }
+  .line i {
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 0%;
+    border-radius: 999px;
+    background: linear-gradient(90deg, var(--sky-400), var(--sky-500));
+    transition: width .35s ease;
+  }
+  .tracker.failed .line { background: #ffe4e6; }
+  .tracker.failed .line i { background: #fb7185; }
+
+  /* ---------- output boxes ---------- */
+
+  #boxes {
+    display: none;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 18px;
+    margin-top: 18px;
+  }
+  #boxes.on { display: grid; }
+
+  .box { display: flex; flex-direction: column; }
+
+  .box-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .box-index {
+    width: 20px; height: 20px;
+    border-radius: 6px;
+    background: var(--sky-50);
+    color: var(--sky-600);
+    border: 1px solid var(--sky-100);
+    font: 600 11px/18px "SF Mono", ui-monospace, Menlo, monospace;
+    text-align: center;
+    flex: none;
+  }
+  .box-name { font-size: 12.5px; font-weight: 600; letter-spacing: .01em; }
+  .box-sub { font-size: 11.5px; color: var(--ink-3); }
+
+  .copy {
+    margin-left: auto;
+    background: none;
+    border: none;
+    color: var(--ink-3);
+    font-size: 11.5px;
+    padding: 3px 6px;
+  }
+  .copy:hover { color: var(--sky-600); }
+
+  .box-body {
+    flex: 1;
+    min-height: 220px;
+    max-height: 460px;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    background: #fff;
+    padding: 15px 16px;
+    font-size: 13px;
+    line-height: 1.62;
+    color: var(--ink);
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .box-body.empty {
+    color: var(--ink-3);
+    font-style: italic;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    white-space: normal;
+  }
+
+  .chunkrow {
+    display: grid;
+    grid-template-columns: 74px 34px 1fr;
+    gap: 8px;
+    padding: 5px 0;
+    border-bottom: 1px solid #f4f8fc;
+    font-size: 12.5px;
+    align-items: start;
+  }
+  .chunkrow:last-child { border-bottom: none; }
+  .ts {
+    font: 11px/1.5 "SF Mono", ui-monospace, Menlo, monospace;
+    color: var(--ink-3);
+    padding-top: 1px;
+  }
+  .lang {
+    font: 600 10px/16px "SF Mono", ui-monospace, Menlo, monospace;
+    text-align: center;
+    border-radius: 5px;
+    background: var(--sky-50);
+    color: var(--sky-600);
+    border: 1px solid var(--sky-100);
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+  .lang.other { background: #fff7ed; color: #c2410c; border-color: #fed7aa; }
+
+  .toggle {
+    margin-top: 10px;
+    background: none;
+    border: none;
+    color: var(--sky-600);
+    font-size: 11.5px;
+    padding: 0;
+  }
+  .toggle:hover { text-decoration: underline; }
+
+  .caret { display: inline-block; }
+
+  .err {
+    margin-top: 16px;
+    display: none;
+    border: 1px solid #fecdd3;
+    background: #fff5f6;
+    color: #be123c;
+    border-radius: 12px;
+    padding: 11px 14px;
+    font-size: 13px;
+  }
+  .err.on { display: block; }
+
+  @media (max-width: 900px) {
+    #boxes.on, .tracker-grid { grid-template-columns: 1fr; }
+    header { flex-wrap: wrap; }
+    .models { margin-left: 0; width: 100%; justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="mark">Lang<span>-</span>Eval</div>
+    <div class="tagline">multilingual ASR reconciliation</div>
+    <div class="models" id="models"></div>
+  </header>
+
+  <div class="card">
+    <div class="card-title">Audio</div>
+
+    <div class="drop" id="drop">
+      <button class="btn-primary" id="pick">Upload audio</button>
+      <p>or drop a file here &nbsp;·&nbsp; mp3, wav, m4a, flac, ogg</p>
+      <input type="file" id="file" accept="audio/*,.mp3,.wav,.m4a,.mp4,.aac,.flac,.ogg,.opus,.webm" hidden />
+    </div>
+
+    <div class="path-row">
+      <input id="path" placeholder="…or paste a local path: /Users/you/audio/call.mp3" spellcheck="false" />
+      <button class="btn-ghost" id="load-path">Load</button>
+    </div>
+
+    <div class="err" id="err"></div>
+
+    <div id="loaded" style="margin-top:18px">
+      <div class="file-head">
+        <div>
+          <div class="file-name" id="fname"></div>
+          <div class="file-meta" id="fmeta"></div>
+        </div>
+        <button class="btn-primary" id="run">Run evaluation</button>
+      </div>
+      <div class="player">
+        <button class="play" id="play" aria-label="play">
+          <svg id="icon" viewBox="0 0 12 12"><path d="M2 1l9 5-9 5z"/></svg>
+        </button>
+        <input class="seek" id="seek" type="range" min="0" max="1000" value="0" aria-label="seek" />
+        <span class="clock" id="clock">0:00 / 0:00</span>
+        <audio id="player" preload="metadata"></audio>
+      </div>
+
+      <div class="modes">
+        <span class="modes-label">Run 3 prompt</span>
+        <button class="mode on" data-mode="anchored"
+                title="One KEEP / FIX decision per chunk — keeps intelligible Hindi in Devanagari, repairs corrupt chunks from the full pass">anchored</button>
+        <button class="mode" data-mode="direct"
+                title="Reconcile both transcripts, output only the corrected transcript">direct</button>
+        <button class="mode" data-mode="two_stage"
+                title="Flag every chunk CLEAN / GIBBERISH, then output the final transcript">two-stage</button>
+        <button class="mode" data-mode="segment"
+                title="Segment-level reconciliation, transcript only">segment</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="runs">
+    <div class="card">
+      <div class="card-title">Pipeline</div>
+
+      <div class="tracker-grid">
+        <div class="tracker" id="t-full">
+          <div class="tracker-head">
+            <span class="dot"></span>
+            <span class="tracker-name">Run 1 · Whisper — full pass</span>
+            <span class="tracker-time" id="e-full">—</span>
+          </div>
+          <div class="tracker-msg" id="m-full">queued</div>
+          <div class="line"><i id="b-full"></i></div>
+        </div>
+
+        <div class="tracker" id="t-chunked">
+          <div class="tracker-head">
+            <span class="dot"></span>
+            <span class="tracker-name">Run 2 · Whisper — chunked</span>
+            <span class="tracker-time" id="e-chunked">—</span>
+          </div>
+          <div class="tracker-msg" id="m-chunked">queued</div>
+          <div class="line"><i id="b-chunked"></i></div>
+        </div>
+      </div>
+
+      <div class="tracker-grid solo">
+        <div class="tracker" id="t-llm">
+          <div class="tracker-head">
+            <span class="dot"></span>
+            <span class="tracker-name">Run 3 · LLM reconciliation</span>
+            <span class="tracker-time" id="e-llm">—</span>
+          </div>
+          <div class="tracker-msg" id="m-llm">waiting for runs 1 &amp; 2</div>
+          <div class="line"><i id="b-llm"></i></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="boxes" class="on">
+      <div class="box">
+        <div class="box-head">
+          <span class="box-index">1</span>
+          <div>
+            <div class="box-name">Full transcript</div>
+            <div class="box-sub">single pass · forced English</div>
+          </div>
+          <button class="copy" data-copy="o-full">copy</button>
+        </div>
+        <div class="box-body empty" id="o-full">waiting for run 1…</div>
+      </div>
+
+      <div class="box">
+        <div class="box-head">
+          <span class="box-index">2</span>
+          <div>
+            <div class="box-name">Chunked transcript</div>
+            <div class="box-sub" id="sub-chunked">per-chunk · language auto-detect</div>
+          </div>
+          <button class="copy" data-copy="o-chunked">copy</button>
+        </div>
+        <div class="box-body empty" id="o-chunked">waiting for run 2…</div>
+      </div>
+
+      <div class="box">
+        <div class="box-head">
+          <span class="box-index">3</span>
+          <div>
+            <div class="box-name">Reconciled transcript</div>
+            <div class="box-sub" id="sub-llm">LLM judge · anchored prompt</div>
+          </div>
+          <button class="copy" data-copy="o-llm">copy</button>
+        </div>
+        <div class="box-body empty" id="o-llm">waiting for run 3…</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+
+let job = null;
+let source = null;
+const timers = {};
+const started = {};
+const rawText = { full: "", chunked: "", llm: "" };
+const chunkRows = [];
+
+/* ---------- upload ---------- */
+
+function showError(message) {
+  const box = $("err");
+  box.textContent = message;
+  box.classList.add("on");
+}
+
+function clearError() { $("err").classList.remove("on"); }
+
+function formatDuration(seconds) {
+  const total = Math.round(seconds);
+  return `${Math.floor(total / 60)}:${String(total % 60).padStart(2, "0")}`;
+}
+
+function formatSize(bytes) {
+  return bytes < 1048576
+    ? `${Math.round(bytes / 1024)} KB`
+    : `${(bytes / 1048576).toFixed(1)} MB`;
+}
+
+function onLoaded(data) {
+  job = data;
+  $("fname").textContent = data.name;
+  $("fmeta").textContent =
+    `${formatDuration(data.duration)}  ·  ${formatSize(data.size)}  ·  job ${data.job_id}`;
+  $("player").src = data.url;
+  $("seek").value = 0;
+  $("seek").style.setProperty("--played", "0%");
+  $("clock").textContent = `0:00 / ${formatDuration(data.duration)}`;
+  $("loaded").classList.add("on");
+  $("models").innerHTML =
+    `<span class="pill">${data.config.whisper_model.split("/").pop()}</span>` +
+    `<span class="pill">${data.config.llm_model.split("/").pop()}</span>` +
+    `<span class="pill">chunk ${data.config.chunk_seconds}s</span>`;
+  $("sub-chunked").textContent = `${data.config.chunk_seconds}s chunks · language auto-detect`;
+  resetRuns();
+}
+
+async function post(url, options) {
+  const response = await fetch(url, options);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || `request failed (${response.status})`);
+  return data;
+}
+
+async function uploadFile(file) {
+  clearError();
+  const body = new FormData();
+  body.append("file", file);
+  $("pick").textContent = "Uploading…";
+  $("pick").disabled = true;
+  try {
+    onLoaded(await post("/api/upload", { method: "POST", body }));
+  } catch (error) {
+    showError(error.message);
+  } finally {
+    $("pick").textContent = "Upload audio";
+    $("pick").disabled = false;
+  }
+}
+
+$("pick").onclick = () => $("file").click();
+$("file").onchange = (event) => {
+  if (event.target.files[0]) uploadFile(event.target.files[0]);
+};
+
+$("load-path").onclick = async () => {
+  const path = $("path").value.trim();
+  if (!path) return;
+  clearError();
+  try {
+    onLoaded(await post("/api/use-path", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    }));
+  } catch (error) {
+    showError(error.message);
+  }
+};
+$("path").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") $("load-path").click();
+});
+
+const drop = $("drop");
+["dragenter", "dragover"].forEach((name) =>
+  drop.addEventListener(name, (event) => {
+    event.preventDefault();
+    drop.classList.add("over");
+  })
+);
+["dragleave", "drop"].forEach((name) =>
+  drop.addEventListener(name, (event) => {
+    event.preventDefault();
+    drop.classList.remove("over");
+  })
+);
+drop.addEventListener("drop", (event) => {
+  const file = event.dataTransfer.files[0];
+  if (file) uploadFile(file);
+});
+
+/* ---------- run 3 prompt mode ---------- */
+
+let llmMode = "anchored";
+
+document.querySelectorAll(".mode").forEach((button) => {
+  button.onclick = () => {
+    llmMode = button.dataset.mode;
+    document.querySelectorAll(".mode").forEach((other) =>
+      other.classList.toggle("on", other === button)
+    );
+    $("sub-llm").textContent = `LLM judge · ${button.textContent} prompt`;
+  };
+});
+
+/* ---------- player ---------- */
+
+const PLAY_ICON = "M2 1l9 5-9 5z";
+const PAUSE_ICON = "M2 1h3v10H2zM7 1h3v10H7z";
+
+const player = $("player");
+
+$("play").onclick = () => (player.paused ? player.play() : player.pause());
+
+player.addEventListener("play", () => {
+  $("icon").firstElementChild.setAttribute("d", PAUSE_ICON);
+  $("play").setAttribute("aria-label", "pause");
+});
+
+["pause", "ended"].forEach((name) =>
+  player.addEventListener(name, () => {
+    $("icon").firstElementChild.setAttribute("d", PLAY_ICON);
+    $("play").setAttribute("aria-label", "play");
+  })
+);
+
+player.addEventListener("timeupdate", () => {
+  const total = player.duration || (job && job.duration) || 0;
+  if (!total) return;
+  const fraction = player.currentTime / total;
+  $("seek").value = Math.round(fraction * 1000);
+  $("seek").style.setProperty("--played", (fraction * 100).toFixed(2) + "%");
+  $("clock").textContent = `${formatDuration(player.currentTime)} / ${formatDuration(total)}`;
+});
+
+$("seek").addEventListener("input", (event) => {
+  const total = player.duration || (job && job.duration) || 0;
+  const fraction = event.target.value / 1000;
+  $("seek").style.setProperty("--played", (fraction * 100).toFixed(2) + "%");
+  if (total) player.currentTime = fraction * total;
+});
+
+/* ---------- trackers ---------- */
+
+const STAGES = ["full", "chunked", "llm"];
+
+function resetRuns() {
+  STAGES.forEach((stage) => {
+    stopClock(stage);
+    $("t-" + stage).className = "tracker";
+    $("b-" + stage).style.width = "0%";
+    $("e-" + stage).textContent = "—";
+    const body = $("o-" + stage);
+    body.className = "box-body empty";
+    body.textContent = `waiting for run ${STAGES.indexOf(stage) + 1}…`;
+    rawText[stage] = "";
+  });
+  $("sub-llm").textContent = `LLM judge · ${llmMode.replace("_", "-")} prompt`;
+  $("m-full").textContent = "queued";
+  $("m-chunked").textContent = "queued";
+  $("m-llm").textContent = "waiting for runs 1 & 2";
+  chunkRows.length = 0;
+}
+
+function startClock(stage) {
+  started[stage] = Date.now();
+  stopClock(stage);
+  timers[stage] = setInterval(() => {
+    $("e-" + stage).textContent = ((Date.now() - started[stage]) / 1000).toFixed(1) + "s";
+  }, 100);
+}
+
+function stopClock(stage) {
+  if (timers[stage]) clearInterval(timers[stage]);
+  timers[stage] = null;
+}
+
+/* ---------- output rendering ---------- */
+
+function setBody(stage, text) {
+  const body = $("o-" + stage);
+  body.className = "box-body";
+  body.textContent = text;
+}
+
+function appendChunk(payload) {
+  const body = $("o-chunked");
+  if (body.classList.contains("empty")) {
+    body.className = "box-body";
+    body.innerHTML = "";
+  }
+  const row = document.createElement("div");
+  row.className = "chunkrow";
+
+  const ts = document.createElement("div");
+  ts.className = "ts";
+  ts.textContent = `${payload.start.toFixed(0)}–${payload.end.toFixed(0)}s`;
+
+  const lang = document.createElement("div");
+  lang.className = "lang" + (payload.language === "en" ? "" : " other");
+  lang.textContent = payload.language;
+
+  const text = document.createElement("div");
+  text.textContent = payload.text || "—";
+
+  row.append(ts, lang, text);
+  body.appendChild(row);
+  body.scrollTop = body.scrollHeight;
+}
+
+// The model sometimes echoes the <<< >>> fences that delimit the prompt inputs.
+function stripFences(text) {
+  return text.trim().replace(/^<<<\s*/, "").replace(/\s*>>>$/, "");
+}
+
+// Run 3 in anchored mode returns judgements; the worker assembles the rows.
+function renderRows(rows, truncated, fixed) {
+  const body = $("o-llm");
+  body.className = "box-body";
+  body.innerHTML = "";
+
+  const plain = rows.map((row) => row.text).join(" ");
+  const table = document.createElement("div");
+  const flowing = document.createElement("div");
+  flowing.style.cssText = "display:none;white-space:pre-wrap";
+  flowing.textContent = plain;
+
+  rows.forEach((row) => {
+    const line = document.createElement("div");
+    line.className = "chunkrow";
+
+    const ts = document.createElement("div");
+    ts.className = "ts";
+    ts.textContent = `${Math.round(row.start)}\u2013${Math.round(row.end)}s`;
+
+    const tag = document.createElement("div");
+    tag.className = "lang" + (row.decision === "FIX" ? " other" : "");
+    tag.textContent = row.decision === "FIX" ? "fix" : "keep";
+
+    const said = document.createElement("div");
+    said.textContent = row.text;
+
+    line.append(ts, tag, said);
+    table.appendChild(line);
+  });
+
+  $("sub-llm").textContent =
+    `LLM judge \u00b7 ${rows.length} chunks \u00b7 ${fixed} repaired from run 1`;
+
+  const rowsText = rows
+    .map((row) => `${row.start} - ${row.end} | ${row.decision} | ${row.text}`)
+    .join("\n");
+  rawText.llm = rowsText;
+
+  const toggle = document.createElement("button");
+  toggle.className = "toggle";
+  const label = (showingRows) =>
+    showingRows ? "\u25b8 show as one transcript" : "\u25be show per-chunk decisions";
+  toggle.textContent = label(true);
+  toggle.onclick = () => {
+    const showingRows = table.style.display !== "none";
+    table.style.display = showingRows ? "none" : "block";
+    flowing.style.display = showingRows ? "block" : "none";
+    toggle.textContent = label(!showingRows);
+    rawText.llm = showingRows ? plain : rowsText;  // copy follows the visible view
+  };
+
+  body.append(table, flowing, toggle);
+
+  if (truncated) {
+    const warning = document.createElement("div");
+    warning.style.cssText =
+      "margin-top:10px;font-size:11.5px;color:#c2410c;background:#fff7ed;" +
+      "border:1px solid #fed7aa;border-radius:8px;padding:6px 9px;white-space:normal";
+    warning.textContent =
+      "The judge stopped at the token cap, so later chunks defaulted to keep.";
+    body.appendChild(warning);
+  }
+}
+
+function renderLlm(rawOutput, truncated) {
+  const text = stripFences(rawOutput);
+  const body = $("o-llm");
+  body.className = "box-body";
+
+  const note = () => {
+    if (!truncated) return;
+    const warning = document.createElement("div");
+    warning.style.cssText =
+      "margin-top:10px;font-size:11.5px;color:#c2410c;background:#fff7ed;" +
+      "border:1px solid #fed7aa;border-radius:8px;padding:6px 9px;white-space:normal";
+    warning.textContent =
+      "Output stopped at the token cap — raise LANG_EVAL_MAX_TOKENS or try another Run 3 prompt.";
+    body.appendChild(warning);
+  };
+
+  const marker = text.indexOf("FINAL_TRANSCRIPT:");
+  if (marker === -1) {
+    body.textContent = text;
+    note();
+    return;
+  }
+
+  const flags = text.slice(0, marker).trim();
+  const final = stripFences(text.slice(marker + "FINAL_TRANSCRIPT:".length));
+
+  body.innerHTML = "";
+  const finalNode = document.createElement("div");
+  finalNode.style.whiteSpace = "pre-wrap";
+  finalNode.textContent = final;
+  body.appendChild(finalNode);
+  note();
+
+  if (!flags) return;
+
+  const toggle = document.createElement("button");
+  toggle.className = "toggle";
+  const detail = document.createElement("div");
+  detail.style.display = "none";
+  detail.style.whiteSpace = "pre-wrap";
+  detail.style.marginTop = "8px";
+  detail.style.fontSize = "12px";
+  detail.style.color = "var(--ink-2)";
+  detail.textContent = flags;
+
+  const label = (open) => (open ? "▾ hide chunk flags" : "▸ show chunk flags");
+  toggle.textContent = label(false);
+  toggle.onclick = () => {
+    const open = detail.style.display === "none";
+    detail.style.display = open ? "block" : "none";
+    toggle.textContent = label(open);
+  };
+
+  body.append(toggle, detail);
+}
+
+document.querySelectorAll(".copy").forEach((button) => {
+  button.onclick = () => {
+    const stage = button.dataset.copy.replace("o-", "");
+    navigator.clipboard.writeText(rawText[stage] || $(button.dataset.copy).innerText);
+    const original = button.textContent;
+    button.textContent = "copied";
+    setTimeout(() => (button.textContent = original), 1200);
+  };
+});
+
+/* ---------- run ---------- */
+
+$("run").onclick = () => {
+  if (!job) return;
+  if (source) source.close();
+  clearError();
+  resetRuns();
+  $("runs").classList.add("on");
+  $("run").disabled = true;
+  $("run").textContent = "Running…";
+
+  source = new EventSource(`/api/run/${job.job_id}?llm_mode=${llmMode}`);
+
+  source.onmessage = (message) => {
+    const payload = JSON.parse(message.data);
+    const stage = payload.stage;
+
+    if (payload.event === "pipeline_start") {
+      $("m-full").textContent = "starting";
+      $("m-chunked").textContent = "starting";
+      return;
+    }
+
+    if (payload.event === "pipeline_done" || payload.event === "pipeline_error") {
+      if (payload.event === "pipeline_error") showError(payload.msg);
+      STAGES.forEach(stopClock);
+      $("run").disabled = false;
+      $("run").textContent = "Run again";
+      source.close();
+      source = null;
+      return;
+    }
+
+    if (!stage) return;
+
+    switch (payload.event) {
+      case "start":
+        $("t-" + stage).classList.add("active");
+        $("m-" + stage).textContent = payload.msg || "running";
+        startClock(stage);
+        break;
+
+      case "progress":
+        $("b-" + stage).style.width = (payload.pct || 0) + "%";
+        if (payload.msg) $("m-" + stage).textContent = payload.msg;
+        break;
+
+      case "chunk":
+        appendChunk(payload);
+        break;
+
+      case "chunk_error":
+        appendChunk({
+          start: 0, end: 0, language: "err",
+          text: `chunk ${payload.index} failed: ${payload.msg}`,
+        });
+        break;
+
+      case "delta":
+        rawText.llm += payload.text;
+        setBody("llm", rawText.llm);
+        $("o-llm").scrollTop = $("o-llm").scrollHeight;
+        break;
+
+      case "text":
+        rawText[stage] = payload.text;
+        if (stage === "full") setBody("full", payload.text);
+        if (stage === "llm") {
+          if (payload.rows) renderRows(payload.rows, payload.truncated, payload.fixed);
+          else renderLlm(payload.text, payload.truncated);
+        }
+        break;
+
+      case "done":
+        stopClock(stage);
+        $("t-" + stage).className = "tracker done";
+        $("b-" + stage).style.width = "100%";
+        $("e-" + stage).textContent = payload.elapsed + "s";
+        $("m-" + stage).textContent = payload.msg || "complete";
+        if (stage !== "llm" && !$("t-llm").classList.contains("active")) {
+          $("m-llm").textContent =
+            $("t-full").classList.contains("done") && $("t-chunked").classList.contains("done")
+              ? "starting"
+              : "waiting for the other transcription run";
+        }
+        break;
+
+      case "error":
+        stopClock(stage);
+        $("t-" + stage).className = "tracker failed";
+        $("b-" + stage).style.width = "100%";
+        $("m-" + stage).textContent = payload.msg;
+        break;
+    }
+  };
+
+  source.onerror = () => {
+    if (!source) return;
+    showError("Lost the connection to the server.");
+    STAGES.forEach(stopClock);
+    $("run").disabled = false;
+    $("run").textContent = "Run again";
+    source.close();
+    source = null;
+  };
+};
+</script>
+</body>
+</html>
